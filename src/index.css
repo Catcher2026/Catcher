@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 250 250 250;
+  --surface: 255 255 255;
+  --border: 228 228 231;
+  --muted: 113 113 122;
+  --fg: 24 24 27;
+  --accent: 59 130 246;
+  --success: 22 163 74;
+  --danger: 220 38 38;
+  --warning: 217 119 6;
+}
+
+.dark {
+  --bg: 9 9 11;
+  --surface: 24 24 27;
+  --border: 39 39 42;
+  --muted: 161 161 170;
+  --fg: 244 244 245;
+  --accent: 96 165 250;
+  --success: 34 197 94;
+  --danger: 248 113 113;
+  --warning: 251 191 36;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+}
+
+button { font-family: inherit; }
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border border-border bg-surface hover:bg-bg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply bg-accent text-white border-accent;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: color-mix(in srgb, rgb(var(--accent)) 88%, black);
+    border-color: color-mix(in srgb, rgb(var(--accent)) 88%, black);
+    color: white;
+  }
+  .btn-danger {
+    @apply text-danger border-danger/40 hover:bg-danger/10;
+  }
+  .input {
+    @apply w-full px-3 py-1.5 rounded-md border border-border bg-surface text-fg placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
+  .card {
+    @apply rounded-lg border border-border bg-surface;
+  }
+  .tab {
+    @apply px-3 py-2 text-sm text-muted hover:text-fg border-b-2 border-transparent cursor-pointer;
+  }
+  .tab-active {
+    @apply text-fg border-accent;
+  }
+}
