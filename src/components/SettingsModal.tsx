@@ -5,10 +5,56 @@ import type { Settings, LLMProvider } from '@shared/types'
 const PROVIDERS: { value: LLMProvider; label: string; defaultModel: string; defaultBaseUrl?: string }[] = [
   { value: 'openai', label: 'OpenAI', defaultModel: 'gpt-4o-mini' },
   { value: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-6' },
-  { value: 'gemini', label: 'Google (Gemini)', defaultModel: 'gemini-2.5-pro' },
+  { value: 'gemini', label: 'Google (Gemini)', defaultModel: 'gemini-3-pro' },
   { value: 'local', label: 'Local (Ollama / LM Studio)', defaultModel: 'qwen2.5:32b', defaultBaseUrl: 'http://localhost:11434/v1' },
   { value: 'custom', label: 'Custom (OpenAI-compatible)', defaultModel: '' },
 ]
+
+interface ModelOption {
+  id: string           // model id sent to the API
+  label: string        // display name in dropdown
+  provider: LLMProvider
+  vision: boolean
+}
+
+// Popular hosted models grouped by provider. Vision-capable models get a "(supports screenshot)"
+// suffix so users know which ones can drive the runner's image-based fallbacks.
+const HOSTED_MODELS: ModelOption[] = [
+  // OpenAI
+  { id: 'gpt-4o-mini',       label: 'GPT-4o mini',  provider: 'openai',    vision: true },
+  { id: 'gpt-4o',            label: 'GPT-4o',       provider: 'openai',    vision: true },
+  { id: 'gpt-5',             label: 'GPT-5',        provider: 'openai',    vision: true },
+  { id: 'gpt-5-mini',        label: 'GPT-5 mini',   provider: 'openai',    vision: true },
+  { id: 'gpt-5.4',           label: 'GPT-5.4',      provider: 'openai',    vision: true },
+  { id: 'o1',                label: 'o1',           provider: 'openai',    vision: true },
+  // Anthropic
+  { id: 'claude-haiku-4-5',  label: 'Claude Haiku 4.5',  provider: 'anthropic', vision: true },
+  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'anthropic', vision: true },
+  { id: 'claude-opus-4-7',   label: 'Claude Opus 4.7',   provider: 'anthropic', vision: true },
+  // Google
+  { id: 'gemini-3-pro',      label: 'Gemini 3 Pro',      provider: 'gemini', vision: true },
+  { id: 'gemini-3.1-pro',    label: 'Gemini 3.1 Pro',    provider: 'gemini', vision: true },
+  { id: 'gemini-2.5-pro',    label: 'Gemini 2.5 Pro',    provider: 'gemini', vision: true },
+  { id: 'gemini-2.5-flash',  label: 'Gemini 2.5 Flash',  provider: 'gemini', vision: true },
+]
+
+const PROVIDER_GROUPS: { provider: LLMProvider; label: string }[] = [
+  { provider: 'openai',    label: 'OpenAI' },
+  { provider: 'anthropic', label: 'Anthropic (Claude)' },
+  { provider: 'gemini',    label: 'Google (Gemini)' },
+]
+
+const SENTINEL_LOCAL = '__local__'
+const SENTINEL_CUSTOM = '__custom__'
+
+function modelKey(provider: LLMProvider, model: string): string {
+  if (provider === 'local') return SENTINEL_LOCAL
+  if (provider === 'custom') return SENTINEL_CUSTOM
+  // Match against known hosted models; fall back to custom if the saved model
+  // isn't in our list (so older configs don't get silently rewritten).
+  const hit = HOSTED_MODELS.find((m) => m.provider === provider && m.id === model)
+  return hit ? `${provider}:${model}` : SENTINEL_CUSTOM
+}
 
 export function SettingsModal() {
   const { showSettings, setShowSettings, settings, refreshSettings } = useApp()
@@ -38,18 +84,55 @@ export function SettingsModal() {
         <div className="flex-1 overflow-auto p-5 space-y-6">
 
           <Section title="LLM provider">
-            <Row label="Provider">
-              <select className="input" value={s.llm.default.provider} onChange={(e) => {
-                const provider = e.target.value as LLMProvider
-                const def = PROVIDERS.find((p) => p.value === provider)!
-                patch('llm', { default: {
-                  ...s.llm.default,
-                  provider,
-                  model: def.defaultModel || s.llm.default.model,
-                  baseUrl: def.defaultBaseUrl ?? s.llm.default.baseUrl,
-                } })
-              }}>
-                {PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            <Row label="Model">
+              <select
+                className="input"
+                value={modelKey(s.llm.default.provider, s.llm.default.model)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === SENTINEL_LOCAL) {
+                    const def = PROVIDERS.find((p) => p.value === 'local')!
+                    patch('llm', { default: {
+                      ...s.llm.default,
+                      provider: 'local',
+                      model: s.llm.default.provider === 'local' ? s.llm.default.model : def.defaultModel,
+                      baseUrl: s.llm.default.baseUrl || def.defaultBaseUrl,
+                    } })
+                    return
+                  }
+                  if (v === SENTINEL_CUSTOM) {
+                    patch('llm', { default: {
+                      ...s.llm.default,
+                      provider: 'custom',
+                      model: s.llm.default.provider === 'custom' ? s.llm.default.model : '',
+                      baseUrl: s.llm.default.baseUrl ?? '',
+                    } })
+                    return
+                  }
+                  // hosted model: "provider:model-id"
+                  const [providerStr, ...rest] = v.split(':')
+                  const modelId = rest.join(':')
+                  patch('llm', { default: {
+                    ...s.llm.default,
+                    provider: providerStr as LLMProvider,
+                    model: modelId,
+                    baseUrl: undefined,
+                  } })
+                }}
+              >
+                {PROVIDER_GROUPS.map((g) => (
+                  <optgroup key={g.provider} label={g.label}>
+                    {HOSTED_MODELS.filter((m) => m.provider === g.provider).map((m) => (
+                      <option key={`${m.provider}:${m.id}`} value={`${m.provider}:${m.id}`}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+                <optgroup label="Self-hosted">
+                  <option value={SENTINEL_LOCAL}>Local (Ollama / LM Studio)</option>
+                  <option value={SENTINEL_CUSTOM}>Custom (OpenAI-compatible endpoint)</option>
+                </optgroup>
               </select>
             </Row>
             {s.llm.default.provider !== 'local' && (
@@ -57,19 +140,43 @@ export function SettingsModal() {
                 <input type="password" className="input" placeholder="sk-…" value={s.llm.default.apiKey ?? ''} onChange={(e) => patch('llm', { default: { ...s.llm.default, apiKey: e.target.value } })} />
               </Row>
             )}
-            <Row label="Model"><input className="input" value={s.llm.default.model} onChange={(e) => patch('llm', { default: { ...s.llm.default, model: e.target.value } })} /></Row>
-            <Row label={s.llm.default.provider === 'local' ? 'Endpoint URL *' : 'Base URL (optional)'}>
-              <input
-                className="input"
-                placeholder={s.llm.default.provider === 'local' ? 'http://localhost:11434/v1' : 'https://api.openai.com/v1'}
-                value={s.llm.default.baseUrl ?? ''}
-                onChange={(e) => patch('llm', { default: { ...s.llm.default, baseUrl: e.target.value } })}
-              />
-            </Row>
             {s.llm.default.provider === 'local' && (
-              <p className="text-xs text-muted -mt-1">
-                Point this at any local OpenAI-compatible server. Defaults: Ollama <code>http://localhost:11434/v1</code>, LM Studio <code>http://localhost:1234/v1</code>. No API key required.
-              </p>
+              <>
+                <Row label="Model name *">
+                  <input
+                    className="input"
+                    placeholder="qwen2.5:32b"
+                    value={s.llm.default.model}
+                    onChange={(e) => patch('llm', { default: { ...s.llm.default, model: e.target.value } })}
+                  />
+                </Row>
+                <Row label="Endpoint URL *">
+                  <input
+                    className="input"
+                    placeholder="http://localhost:11434/v1"
+                    value={s.llm.default.baseUrl ?? ''}
+                    onChange={(e) => patch('llm', { default: { ...s.llm.default, baseUrl: e.target.value } })}
+                  />
+                </Row>
+                <p className="text-xs text-muted -mt-1">
+                  Point this at any local OpenAI-compatible server. Defaults: Ollama <code>http://localhost:11434/v1</code>, LM Studio <code>http://localhost:1234/v1</code>. No API key required.
+                </p>
+              </>
+            )}
+            {s.llm.default.provider === 'custom' && (
+              <>
+                <Row label="Endpoint URL *">
+                  <input
+                    className="input"
+                    placeholder="https://api.example.com/v1"
+                    value={s.llm.default.baseUrl ?? ''}
+                    onChange={(e) => patch('llm', { default: { ...s.llm.default, baseUrl: e.target.value, model: s.llm.default.model || 'default' } })}
+                  />
+                </Row>
+                <p className="text-xs text-muted -mt-1">
+                  Any OpenAI-compatible <code>/chat/completions</code> endpoint. Paste the full base URL — the target model is determined by your endpoint. Vision support depends on what the endpoint serves.
+                </p>
+              </>
             )}
             <Row label="Temperature"><input type="number" step="0.1" min="0" max="2" className="input" value={s.llm.temperature} onChange={(e) => patch('llm', { temperature: +e.target.value })} /></Row>
             <Row label="Max tokens"><input type="number" className="input" value={s.llm.maxTokens} onChange={(e) => patch('llm', { maxTokens: +e.target.value })} /></Row>
@@ -97,6 +204,7 @@ export function SettingsModal() {
             </Row>
             <p className="text-xs text-muted -mt-2">LLM judgements below this confidence are marked “needs review” instead of auto-failing.</p>
             <Toggle label="Send screenshot to LLM" value={s.assert.sendScreenshot} onChange={(v) => patch('assert', { sendScreenshot: v })} />
+            <p className="text-xs text-muted -mt-1">All pre-defined models above support screenshots. A Custom endpoint may not — if its target model lacks vision, the screenshot is ignored and accuracy drops.</p>
             <Toggle label="Send accessibility tree" value={s.assert.sendA11yTree} onChange={(v) => patch('assert', { sendA11yTree: v })} />
             <Toggle label="Send full HTML (more accurate, more tokens)" value={s.assert.sendFullHtml} onChange={(v) => patch('assert', { sendFullHtml: v })} />
             <Toggle label="Send network log" value={s.assert.sendNetworkLog} onChange={(v) => patch('assert', { sendNetworkLog: v })} />

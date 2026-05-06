@@ -198,8 +198,9 @@ Step 2 — Does the user describe the target by SPECIFIC TEXT (e.g. "click 'Sign
 CARDINAL RULES:
 - NEVER pick an [OCCLUDED] element. Physically unreachable.
 - When overlay exists, NEVER use Form A — only Form B with selectors from MODAL CONTENTS.
+- NEVER use "press Escape" or "press Enter" as a prerequisite action in a multi-action sequence UNLESS the step description explicitly says "press Escape", "press Enter", "dismiss", or "close". Both keys close/submit dialogs. If the target is in MODAL CONTENTS, click it directly — do NOT try to dismiss the overlay first with a key press.
 
-Multi-action sequencing: combine prerequisites with the goal in { "actions": [...] }. A single "press Escape" is only correct when the step IS about dismissing.
+Multi-action sequencing: combine prerequisites with the goal in { "actions": [...] }. A single "press Escape" or "press Enter" is only correct when the step itself IS about dismissing or submitting — i.e. those words appear in the step description.
 
 1. The "name" field is the LITERAL accessible name from the ARIA snapshot, NOT the user's description.
    - If the user says "click the close button" but the snapshot shows no button named "Close", DO NOT guess { "name": "Close" }. That will fail.
@@ -244,12 +245,10 @@ ARIA snapshot contains: - button "Sign in"
 
 Example 4: User says "Select a taste tag from the available options".
 ACTIVE BLOCKING OVERLAYS lists: selector="div.modal-mask" (fullscreen).
-DOM list has: [OCCLUDED] selector="div._itemButton_h8dtt_103" — div text="American Comfort" class~="_itemButton_..."
-✓ Output: { "actions": [
-    { "action": "press", "value": "Escape" },
-    { "action": "click", "selector": "div._itemButton_h8dtt_103" }
-  ], "reason": "dismiss the blocking overlay first, then click the taste tag" }
-✗ Wrong: { "action": "press", "value": "Escape" }   // only handles the prerequisite, the user wanted a tag SELECTED
+MODAL CONTENTS (non-occluded) lists: selector="div._itemButton_h8dtt_103" — div text="American Comfort" class~="_itemButton_..."
+✓ Output: { "action": "click", "selector": "div._itemButton_h8dtt_103", "reason": "taste tag found in MODAL CONTENTS (non-occluded), clicking directly" }
+✗ Wrong: { "actions": [{ "action": "press", "value": "Escape" }, { "action": "click", "selector": "div._itemButton_h8dtt_103" }] }
+  // pressing Escape CLOSES the modal that contains the taste tags — never use keyboard keys as prerequisites
 
 Output ONE JSON object only. No prose, no markdown, no code fences.`
   // Rank clickables by semantic relevance to the step description
@@ -293,8 +292,21 @@ Output ONE JSON object only. No prose, no markdown, no code fences.`
       }
     }
   }
+  // Fast path: skip the LLM entirely for unambiguous simple click steps. When the user
+  // wrote "click/tap/press [the] 'X' [...]" and our heuristic has a confident single
+  // match scoring strongly on the quoted text, the LLM adds no value — it occasionally
+  // even drifts to a visually-adjacent wrong element (e.g. picking the close-X icon when
+  // the user said "confirm"). This bypass is deterministic, faster, and saves tokens.
+  if (recommended && recommended.action === 'click') {
+    const isSimpleClick = /^\s*(click|tap|press)\b/i.test(stepDescription)
+    const hasQuoted = /['"‘’“”]/.test(stepDescription)
+    if (isSimpleClick && hasQuoted) {
+      return [recommended]
+    }
+  }
+
   const recommendedText = recommended
-    ? `\n═══ RECOMMENDED ACTION (computed from text-match heuristic — output this verbatim unless it's obviously wrong) ═══\n${JSON.stringify(recommended)}\n`
+    ? `\n═══ RECOMMENDED ACTION (element is confirmed NON-OCCLUDED and directly clickable — output this verbatim; do NOT let the overlay section override it) ═══\n${JSON.stringify(recommended)}\n`
     : ''
 
   const overlaysText = hasOverlay
@@ -346,6 +358,57 @@ ${occludedText ? `\n═══ Occluded elements (DO NOT click — covered by ove
   const parsed = parseJsonLoose<any>(res.text)
   if (parsed && Array.isArray(parsed.actions)) return parsed.actions as PlannedAction[]
   return [parsed as PlannedAction]
+}
+
+// Vision-based coordinate fallback: when the primary selector click fails entirely,
+// take a screenshot and ask the LLM to locate the element by pixel position, then
+// click at those exact coordinates via mouse. Works even when no CSS selector can
+// uniquely identify the target.
+async function clickByCoordinates(ctx: ExecCtx, stepDescription: string, preCapturedShot?: string | null): Promise<void> {
+  // Prefer the pre-click screenshot if provided — the page state may have shifted
+  // (e.g. the modal closed) during the failed click attempt, so a fresh screenshot
+  // would no longer show the target element.
+  const screenshot = preCapturedShot ?? await screenshotBase64(ctx.page, false).catch(() => null)
+  if (!screenshot) throw new Error('could not take screenshot for vision fallback')
+
+  const client = createLLMClient(ctx.settings.llm.planner ?? ctx.settings.llm.default)
+  const vp = ctx.settings.engine.viewport ?? { width: 1280, height: 800 }
+  const sys = `You locate elements in web browser screenshots. Given a step description, return the pixel coordinates of the CENTER of the element the user wants to click.
+
+Output JSON only — no prose, no markdown:
+{"found": true, "x": <integer>, "y": <integer>, "reason": "<brief>"}
+or if the element is not visible:
+{"found": false, "reason": "<brief>"}`
+
+  const messages: LLMMessage[] = [
+    { role: 'system', content: sys },
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: `Step: ${stepDescription}\nScreenshot: ${vp.width}×${vp.height} px. Return center (x, y) of the element to click.`,
+        },
+        { type: 'image', imageBase64: screenshot },
+      ],
+    },
+  ]
+
+  const res = await client.complete(messages, {
+    temperature: 0,
+    maxTokens: 150,
+    jsonOnly: true,
+    signal: ctx.signal,
+  })
+  ctx.usage.inputTokens += res.usage.inputTokens
+  ctx.usage.outputTokens += res.usage.outputTokens
+
+  const parsed = parseJsonLoose<any>(res.text)
+  if (!parsed?.found || typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
+    throw new Error(`element not visible in screenshot: ${parsed?.reason ?? 'no coordinates returned'}`)
+  }
+
+  await ctx.page.mouse.click(Math.round(parsed.x), Math.round(parsed.y))
 }
 
 function normalizeText(s: string): string {
@@ -525,8 +588,29 @@ async function executeStep(
         const summaries: string[] = []
         for (const action of actions) {
           checkCancel(ctx.runId)
-          await executeAction(ctx.page, action, ctx.settings.engine.actionTimeoutMs)
-          summaries.push(`${action.action}${action.role ? ` ${action.role}` : ''}${action.name ? ` "${action.name}"` : ''}${action.selector ? ` selector="${action.selector}"` : ''}${action.value ? ` value="${action.value}"` : ''}`)
+          const actionSummary = `${action.action}${action.role ? ` ${action.role}` : ''}${action.name ? ` "${action.name}"` : ''}${action.selector ? ` selector="${action.selector}"` : ''}${action.value ? ` value="${action.value}"` : ''}`
+          // For click actions, capture the page state BEFORE the click attempt so vision
+          // fallback can use it. The page may shift during the click attempt (e.g. modal
+          // dismissed by Playwright's hover/scroll events), making a post-failure screenshot
+          // useless. Reusing the pre-click image guarantees the LLM sees the element.
+          const preClickShot = action.action === 'click'
+            ? await screenshotBase64(ctx.page, false).catch(() => null)
+            : null
+          try {
+            await executeAction(ctx.page, action, ctx.settings.engine.actionTimeoutMs)
+            summaries.push(actionSummary)
+          } catch (clickErr: any) {
+            if (clickErr instanceof CancelError) throw clickErr
+            if (action.action !== 'click') throw clickErr
+            // Vision fallback: ask the LLM to locate the element by coordinates in a screenshot.
+            const originalMsg: string = clickErr?.message ?? String(clickErr)
+            try {
+              await clickByCoordinates(ctx, step.description, preClickShot)
+              summaries.push(`${actionSummary} [vision-fallback]`)
+            } catch (visionErr: any) {
+              throw new Error(`${originalMsg}\n[vision fallback] ${visionErr?.message ?? visionErr}`)
+            }
+          }
         }
         stepResult.status = 'passed'
         stepResult.reasoning = summaries.join(' → ')

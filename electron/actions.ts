@@ -52,26 +52,79 @@ export async function executeAction(page: Page, action: PlannedAction, timeoutMs
     case 'click': {
       try {
         await loc.click({ timeout: timeoutMs, force: action.force })
+        return
       } catch (e: any) {
         const msg = e?.message ?? ''
-        // Common case: clicking a fullscreen overlay (modal-mask) whose center is covered by the modal panel.
-        // Retry at top-left corner where no panel sits, with force to bypass actionability checks.
-        if (/intercepts pointer events|Timeout|not stable/i.test(msg)) {
+
+        // Backdrop-like selectors (modal-mask): the panel covers the center of the mask,
+        // so click a corner that's outside the panel.
+        const isOverlaySelector = !!action.selector && /modal[-_]?mask|backdrop|overlay|drawer[-_]?mask|scrim/i.test(action.selector)
+        if (isOverlaySelector && /intercepts pointer events/i.test(msg)) {
           try {
             await loc.click({ timeout: timeoutMs, force: true, position: { x: 5, y: 5 } })
             return
           } catch {
-            // try bottom-right corner as last resort
             const box = await loc.boundingBox().catch(() => null)
             if (box) {
-              await loc.click({ timeout: timeoutMs, force: true, position: { x: Math.max(5, box.width - 5), y: Math.max(5, box.height - 5) } })
+              try {
+                await loc.click({ timeout: timeoutMs, force: true, position: { x: Math.max(5, box.width - 5), y: Math.max(5, box.height - 5) } })
+                return
+              } catch {}
+            }
+          }
+        }
+
+        // Native DOM click via page.evaluate, identifying the element by selector + optional
+        // visible-text filter. This bypasses two failure modes simultaneously:
+        //   1. CSS occlusion — a dropdown/tooltip/animation covering the button intercepts
+        //      real pointer events (Playwright's mouse click) but not native HTMLElement.click().
+        //   2. Playwright's stuck locator state — after a 5s timeout, loc.elementHandle() may
+        //      still be waiting; raw document.querySelectorAll resolves immediately.
+        // The text filter is critical when the selector is non-unique: it ensures we click the
+        // button with the expected label rather than the first DOM match (which could be an
+        // unrelated button on the page behind the modal).
+        if (action.selector) {
+          const clicked = await page
+            .evaluate(
+              ({ selector, text }: { selector: string; text?: string }) => {
+                try {
+                  const matches = Array.from(document.querySelectorAll(selector))
+                  const candidates = text
+                    ? matches.filter((el) => {
+                        const t = ((el as HTMLElement).innerText || el.textContent || '').toLowerCase()
+                        return t.includes(text.toLowerCase())
+                      })
+                    : matches
+                  const target = candidates[0] as HTMLElement | undefined
+                  if (!target) return false
+                  if (typeof target.click === 'function') target.click()
+                  else target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window as Window }))
+                  return true
+                } catch {
+                  return false
+                }
+              },
+              { selector: action.selector, text: action.text }
+            )
+            .catch(() => false)
+          if (clicked) return
+        } else {
+          // Role+name only — use elementHandle to get the underlying DOM node.
+          const handle = await loc.elementHandle({ timeout: 1000 }).catch(() => null)
+          if (handle) {
+            try {
+              await handle.evaluate((el: any) => {
+                if (typeof el.click === 'function') el.click()
+                else el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+              })
               return
+            } finally {
+              await handle.dispose().catch(() => {})
             }
           }
         }
         throw e
       }
-      return
     }
     case 'fill':    await loc.fill(action.value ?? '', { timeout: timeoutMs, force: action.force }); return
     case 'select':  await loc.selectOption(action.value ?? '', { timeout: timeoutMs }); return
