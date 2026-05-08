@@ -12,7 +12,7 @@ export function AccountsTab() {
     if (!selectedSiteId || !name.trim()) return
     setBusy(true); setError(null)
     try {
-      const res = await window.nullprobe.startManualLogin(selectedSiteId, name.trim())
+      const res = await window.catcher.startManualLogin(selectedSiteId, name.trim())
       setPending({ ...res, name: name.trim() })
     } catch (e: any) {
       setError(e?.message ?? String(e))
@@ -23,7 +23,7 @@ export function AccountsTab() {
     if (!pending) return
     setBusy(true); setError(null)
     try {
-      await window.nullprobe.finishManualLogin(pending.sessionId, pending.profileId)
+      await window.catcher.finishManualLogin(pending.sessionId, pending.profileId)
       setPending(null); setName('')
       await refreshAuth()
     } catch (e: any) {
@@ -33,14 +33,14 @@ export function AccountsTab() {
 
   async function cancel() {
     if (!pending) return
-    await window.nullprobe.cancelManualLogin(pending.sessionId).catch(() => {})
+    await window.catcher.cancelManualLogin(pending.sessionId).catch(() => {})
     setPending(null)
   }
 
   async function del(id: string) {
     if (!selectedSiteId) return
     if (!confirm('Delete this auth profile?')) return
-    await window.nullprobe.deleteAuthProfile(selectedSiteId, id)
+    await window.catcher.deleteAuthProfile(selectedSiteId, id)
     await refreshAuth()
   }
 
@@ -49,7 +49,7 @@ export function AccountsTab() {
       <div className="card p-4 mb-4">
         <div className="font-medium mb-2">Add a new auth profile</div>
         <p className="text-sm text-muted mb-3">
-          NullProbe will open a real browser. Sign in however you normally would (Google, password, passkey…), then come back and click <b>Done</b>. The session is stored locally and reused for tests.
+          Catcher will open a real browser. Sign in however you normally would (Google, password, passkey…), then come back and click <b>Done</b>. The session is stored locally and reused for tests.
         </p>
         <div className="flex gap-2">
           <input className="input flex-1" placeholder="Profile name (e.g. Admin, Regular user)" value={name} onChange={(e) => setName(e.target.value)} disabled={!!pending} />
@@ -82,7 +82,7 @@ export function AccountsTab() {
           <div className="card p-6 w-full max-w-md">
             <div className="text-lg font-semibold mb-2">Browser opened</div>
             <p className="text-sm text-muted mb-4">
-              Complete the login for <b>{pending.name}</b> in the browser window NullProbe just opened. When you're signed in, click <b>Done</b> below to save the session.
+              Complete the login for <b>{pending.name}</b> in the browser window Catcher just opened. When you're signed in, click <b>Done</b> below to save the session.
             </p>
             <div className="flex gap-2 justify-end">
               <button className="btn" onClick={cancel} disabled={busy}>Cancel</button>

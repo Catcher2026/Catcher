@@ -8,6 +8,7 @@ const STEP_LABELS: Record<StepType, { label: string; color: string }> = {
   login: { label: 'Login', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-300 border-purple-500/30' },
   act: { label: 'Act', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-300 border-blue-500/30' },
   assert: { label: 'Assert', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/30' },
+  wait: { label: 'Wait', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30' },
 }
 
 export function TestEditor() {
@@ -15,7 +16,6 @@ export function TestEditor() {
   const original = tests.find((t) => t.id === selectedTestId) ?? null
   const [test, setTest] = useState<TestCase | null>(original)
   const [genDesc, setGenDesc] = useState('')
-  const [genProfile, setGenProfile] = useState<string>('')
   const [generating, setGenerating] = useState(false)
   const [showGen, setShowGen] = useState(false)
 
@@ -42,12 +42,12 @@ export function TestEditor() {
 
   async function save(next: TestCase) {
     setTest(next)
-    await window.nullprobe.saveTest(selectedSiteId!, next)
+    await window.catcher.saveTest(selectedSiteId!, next)
     await refreshTests()
   }
 
   function addStep(type: StepType) {
-    const step: TestStep = { id: uid('step'), type, description: '' }
+    const step: TestStep = { id: uid('step'), type, description: type === 'wait' ? '5' : '' }
     save({ ...test!, steps: [...test!.steps, step] })
   }
 
@@ -75,7 +75,7 @@ export function TestEditor() {
     if (!(await ensureBudgetOk())) return
     setGenerating(true)
     try {
-      const generated = await window.nullprobe.generateTest(selectedSiteId!, genDesc, genProfile || undefined)
+      const generated = await window.catcher.generateTest(selectedSiteId!, genDesc, test!.authProfileId || undefined)
       const merged: TestCase = { ...test!, name: test!.steps.length ? test!.name : generated.name, steps: [...test!.steps, ...generated.steps] }
       await save(merged)
       setGenDesc('')
@@ -99,22 +99,22 @@ export function TestEditor() {
     setStatusMsg('Starting browser…')
 
     clearSubs()
-    unsubsRef.current.push(window.nullprobe.onRunFrame((e) => {
+    unsubsRef.current.push(window.catcher.onRunFrame((e) => {
       if (e.runId === newRunId) setFrame(e.data)
     }))
-    unsubsRef.current.push(window.nullprobe.onRunStatus((e) => {
+    unsubsRef.current.push(window.catcher.onRunStatus((e) => {
       if (e.runId === newRunId) setStatusMsg(e.message)
     }))
-    unsubsRef.current.push(window.nullprobe.onRunStepStart((e) => {
+    unsubsRef.current.push(window.catcher.onRunStepStart((e) => {
       if (e.runId !== newRunId) return
       setStatusMsg('') // clear loading once first step starts
       setStepStates((m) => { const n = new Map(m); n.set(e.stepId, 'running'); return n })
     }))
-    unsubsRef.current.push(window.nullprobe.onRunStepEnd((e) => {
+    unsubsRef.current.push(window.catcher.onRunStepEnd((e) => {
       if (e.runId !== newRunId) return
       setStepStates((m) => { const n = new Map(m); n.set(e.step.stepId, e.step); return n })
     }))
-    unsubsRef.current.push(window.nullprobe.onRunEnd((e) => {
+    unsubsRef.current.push(window.catcher.onRunEnd((e) => {
       if (e.runId !== newRunId) return
       setRunning(false)
       setStatusMsg('')
@@ -142,7 +142,7 @@ export function TestEditor() {
     }))
 
     try {
-      await window.nullprobe.runTest(selectedSiteId!, test!.id, newRunId, genProfile || undefined)
+      await window.catcher.runTest(selectedSiteId!, test!.id, newRunId, test!.authProfileId || undefined)
       await refreshRuns()
     } catch (e: any) {
       console.error(e)
@@ -152,7 +152,7 @@ export function TestEditor() {
 
   async function stopRun() {
     if (!runId) return
-    await window.nullprobe.cancelRun(runId)
+    await window.catcher.cancelRun(runId)
   }
 
   function closeDrawer() {
@@ -185,11 +185,11 @@ export function TestEditor() {
 
         <div className="flex items-center gap-2 mb-4">
           <label className="text-sm text-muted whitespace-nowrap">Auth profile:</label>
-          <select className="input flex-1" value={genProfile} onChange={(e) => setGenProfile(e.target.value)}>
+          <select className="input flex-1" value={test.authProfileId ?? ''} onChange={(e) => save({ ...test!, authProfileId: e.target.value || undefined })}>
             <option value="">None (unauthenticated)</option>
             {authProfiles.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.status})</option>)}
           </select>
-          <span className="text-xs text-muted">used for run & AI generate</span>
+          <span className="text-xs text-muted">saved with this test — used for Run this & Run all</span>
         </div>
 
         <div className="card mb-4">
@@ -206,7 +206,7 @@ export function TestEditor() {
           {showGen && (
             <div className="px-3 pb-3 space-y-2 border-t border-border pt-3">
               <p className="text-xs text-muted">
-                Describe in plain English what you want to verify. NullProbe will open the site in the background, look at it, and produce a draft step list (Act + Assert) that you can edit before running.
+                Describe in plain English what you want to verify. Catcher will open the site in the background, look at it, and produce a draft step list (Act + Assert) that you can edit before running.
               </p>
               <textarea className="input min-h-[60px]" placeholder="e.g. verify the contact page has Twitter, LinkedIn, and email links" value={genDesc} onChange={(e) => setGenDesc(e.target.value)} />
               <button className="btn btn-primary" onClick={generate} disabled={generating || !genDesc.trim()}>
@@ -222,15 +222,32 @@ export function TestEditor() {
             const status = typeof state === 'object' ? state.status : state
             return (
               <div key={s.id} className={`card p-3 ${status === 'running' ? 'ring-2 ring-accent animate-pulse' : ''}`}>
-                <div className="flex items-start gap-2">
+                <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded border text-xs ${STEP_LABELS[s.type].color}`}>{STEP_LABELS[s.type].label}</span>
-                  <input
-                    className="input flex-1"
-                    placeholder={`Describe this ${s.type} step…`}
-                    value={s.description}
-                    onChange={(e) => updateStep(s.id, { description: e.target.value })}
-                    disabled={running}
-                  />
+                  {s.type === 'wait' ? (
+                    <div className="flex-1 flex items-center gap-2">
+                      <span className="text-sm text-muted">Wait for</span>
+                      <input
+                        className="input w-24"
+                        type="number"
+                        min={0}
+                        max={600}
+                        step={1}
+                        value={s.description}
+                        onChange={(e) => updateStep(s.id, { description: e.target.value })}
+                        disabled={running}
+                      />
+                      <span className="text-sm text-muted">seconds</span>
+                    </div>
+                  ) : (
+                    <input
+                      className="input flex-1"
+                      placeholder={`Describe this ${s.type} step…`}
+                      value={s.description}
+                      onChange={(e) => updateStep(s.id, { description: e.target.value })}
+                      disabled={running}
+                    />
+                  )}
                   {status !== 'pending' && (
                     <span className={`text-xs px-2 py-1 ${
                       status === 'passed' ? 'text-success' :
@@ -256,6 +273,7 @@ export function TestEditor() {
         <div className="flex gap-2">
           <button className="btn" onClick={() => addStep('act')} disabled={running}>+ Act</button>
           <button className="btn" onClick={() => addStep('assert')} disabled={running}>+ Assert</button>
+          <button className="btn" onClick={() => addStep('wait')} disabled={running}>+ Wait</button>
         </div>
         </div>
       </div>

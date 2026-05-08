@@ -8,7 +8,7 @@ let dataDir = ''
 
 export function getDataDir(): string {
   if (!dataDir) {
-    dataDir = path.join(app.getPath('home'), '.nullprobe')
+    dataDir = path.join(app.getPath('home'), '.catcher')
   }
   return dataDir
 }

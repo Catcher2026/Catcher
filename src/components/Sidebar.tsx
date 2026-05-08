@@ -11,7 +11,7 @@ export function Sidebar() {
     if (!name.trim() || !url.trim()) return
     let normalized = url.trim()
     if (!/^https?:\/\//.test(normalized)) normalized = 'https://' + normalized
-    const site = await window.nullprobe.createSite({ name: name.trim(), url: normalized })
+    const site = await window.catcher.createSite({ name: name.trim(), url: normalized })
     setName(''); setUrl(''); setAdding(false)
     await refreshSites()
     await selectSite(site.id)
@@ -19,7 +19,7 @@ export function Sidebar() {
 
   async function del(id: string) {
     if (!confirm('Delete this site and all its tests / runs / auth?')) return
-    await window.nullprobe.deleteSite(id)
+    await window.catcher.deleteSite(id)
     if (selectedSiteId === id) await selectSite(null)
     await refreshSites()
   }
@@ -27,7 +27,7 @@ export function Sidebar() {
   return (
     <aside className="w-64 border-r border-border bg-surface flex flex-col">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <div className="font-semibold">NullProbe</div>
+        <div className="font-semibold">Catcher</div>
         <button className="text-muted hover:text-fg text-xs" onClick={() => setShowSettings(true)}>⚙ Settings</button>
       </div>
       <div className="px-3 py-2 text-xs uppercase tracking-wide text-muted">Sites</div>

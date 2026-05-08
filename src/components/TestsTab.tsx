@@ -15,7 +15,7 @@ export function TestsTab() {
     if (!selectedSiteId) return
     const now = new Date().toISOString()
     const t: TestCase = { id: uid('test'), name: 'Untitled test', steps: [], createdAt: now, updatedAt: now }
-    await window.nullprobe.saveTest(selectedSiteId, t)
+    await window.catcher.saveTest(selectedSiteId, t)
     await refreshTests()
     selectTest(t.id)
   }
@@ -26,7 +26,7 @@ export function TestsTab() {
     if (!(await ensureBudgetOk())) return
     setRunning(true)
     try {
-      await window.nullprobe.runAll(selectedSiteId)
+      await window.catcher.runAll(selectedSiteId)
       await refreshRuns()
       setTab('results')
     } finally { setRunning(false) }
@@ -35,7 +35,7 @@ export function TestsTab() {
   async function del(id: string) {
     if (!selectedSiteId) return
     if (!confirm('Delete this test?')) return
-    await window.nullprobe.deleteTest(selectedSiteId, id)
+    await window.catcher.deleteTest(selectedSiteId, id)
     await refreshTests()
   }
 

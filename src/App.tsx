@@ -37,10 +37,10 @@ export default function App() {
 
 function FeedbackButton() {
   const { settings } = useApp()
-  const url = settings?.feedbackUrl ?? 'https://github.com/REPLACE_ME/nullprobe/issues/new'
+  const url = settings?.feedbackUrl ?? 'https://github.com/REPLACE_ME/catcher/issues/new'
   return (
     <button
-      onClick={() => window.nullprobe.openExternal(url)}
+      onClick={() => window.catcher.openExternal(url)}
       title="Report an issue or suggest a feature"
       className="fixed top-3 right-4 btn text-xs px-2 py-1 z-30"
     >

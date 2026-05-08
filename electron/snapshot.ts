@@ -172,10 +172,12 @@ async function collectClickables(page: Page): Promise<{ clickables: ClickableEl[
       try {
         const r = (el as HTMLElement).getBoundingClientRect()
         if (r.width === 0 || r.height === 0) return true
-        // check if center point hits the element (or a descendant)
-        const cx = Math.max(0, Math.min(window.innerWidth - 1, r.left + r.width / 2))
-        const cy = Math.max(0, Math.min(window.innerHeight - 1, r.top + r.height / 2))
-        if (cx < 0 || cy < 0) return true
+        const cx = r.left + r.width / 2
+        const cy = r.top + r.height / 2
+        // If the element's center is outside the viewport, elementFromPoint at a clamped
+        // coordinate would test some other element and falsely report occlusion. Treat
+        // off-screen elements as not-occluded — Playwright auto-scrolls into view on click.
+        if (cx < 0 || cy < 0 || cx >= window.innerWidth || cy >= window.innerHeight) return false
         const top = document.elementFromPoint(cx, cy)
         if (!top) return true
         if (top === el) return false

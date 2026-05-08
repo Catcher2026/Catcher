@@ -1,13 +1,21 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Point Playwright at the Chromium bundled inside our packaged Resources dir.
+// Playwright reads this env var at launch() time (lazy), so setting it here
+// before chromium.launch() is ever called is sufficient.
+if (app.isPackaged) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(process.resourcesPath, 'playwright-browsers')
+}
+
 import * as storage from './storage'
 import * as runner from './runner'
 import * as auth from './auth'
 import { generateTest } from './generate'
 import type { Site, TestCase, Settings } from '../shared/types'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const DEV_URL = process.env.VITE_DEV_SERVER_URL
 
@@ -19,7 +27,7 @@ async function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 700,
-    title: 'NullProbe',
+    title: 'Catcher',
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,

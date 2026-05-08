@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { NullProbeAPI } from '../shared/ipc'
+import type { CatcherAPI } from '../shared/ipc'
 
 function sub(channel: string, cb: (data: any) => void): () => void {
   const handler = (_e: any, data: any) => cb(data)
@@ -7,7 +7,7 @@ function sub(channel: string, cb: (data: any) => void): () => void {
   return () => ipcRenderer.removeListener(channel, handler)
 }
 
-const api: NullProbeAPI = {
+const api: CatcherAPI = {
   listSites: () => ipcRenderer.invoke('sites:list'),
   createSite: (input) => ipcRenderer.invoke('sites:create', input),
   updateSite: (site) => ipcRenderer.invoke('sites:update', site),
@@ -46,4 +46,4 @@ const api: NullProbeAPI = {
   getDataDir: () => ipcRenderer.invoke('app:dataDir'),
 }
 
-contextBridge.exposeInMainWorld('nullprobe', api)
+contextBridge.exposeInMainWorld('catcher', api)

@@ -1,16 +1,19 @@
 {
-  "name": "nullprobe",
+  "name": "catcher",
   "version": "0.1.0",
   "description": "Open-source, local-first AI-powered web testing tool",
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && electron-builder",
     "build:renderer": "tsc -b && vite build",
+    "build": "npm run build:renderer && electron-builder",
+    "dist": "npm run build:renderer && electron-builder -mw",
+    "dist:win": "npm run build:renderer && electron-builder --win",
+    "dist:mac": "npm run build:renderer && electron-builder --mac",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx",
-    "postinstall": "playwright install chromium"
+    "postinstall": "cross-env PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium"
   },
   "dependencies": {
     "playwright": "^1.48.0",
@@ -24,6 +27,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
     "electron": "^32.1.2",
     "electron-builder": "^25.0.5",
     "postcss": "^8.4.47",
@@ -34,16 +38,58 @@
     "vite-plugin-electron-renderer": "^0.14.6"
   },
   "build": {
-    "appId": "dev.nullprobe.app",
-    "productName": "NullProbe",
+    "appId": "dev.catcher.app",
+    "productName": "Catcher",
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "package.json",
+      "!**/node_modules/playwright-core/.local-browsers/**",
+      "!**/node_modules/playwright/.local-browsers/**"
     ],
-    "win": { "target": "nsis" },
-    "mac": { "target": "dmg" }
+    "asarUnpack": [
+      "node_modules/playwright-core/**/*",
+      "node_modules/playwright/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/playwright-core/.local-browsers",
+        "to": "playwright-browsers"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "identity": null
+    },
+    "publish": [
+      { "provider": "github", "owner": "Paritok2026", "repo": "NoneProbe" }
+    ]
   }
 }

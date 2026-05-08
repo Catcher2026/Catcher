@@ -553,6 +553,24 @@ async function executeStep(
   const maxAttempts = ctx.settings.retry.autoRetry ? Math.max(1, ctx.settings.retry.maxAttempts + 1) : 1
   let lastError = ''
 
+  if (step.type === 'wait') {
+    const seconds = Math.max(0, Math.min(600, Number(step.description) || 0))
+    const ms = Math.round(seconds * 1000)
+    // chunk sleep so cancel can interrupt it
+    const chunk = 250
+    let waited = 0
+    while (waited < ms) {
+      checkCancel(ctx.runId)
+      const slice = Math.min(chunk, ms - waited)
+      await ctx.page.waitForTimeout(slice).catch(() => {})
+      waited += slice
+    }
+    stepResult.status = 'passed'
+    stepResult.reasoning = `waited ${seconds}s`
+    stepResult.durationMs = Date.now() - start
+    return stepResult
+  }
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     checkCancel(ctx.runId)
     try {
@@ -843,7 +861,7 @@ export async function runAllTests(siteId: string, settings: Settings): Promise<R
   // sequential
   const results: RunResult[] = []
   for (const t of tests) {
-    const r = await runTest(siteId, t, settings)
+    const r = await runTest(siteId, t, settings, { authProfileId: t.authProfileId })
     results.push(r)
     if (r.status === 'failed' && settings.runAll.onFailure === 'stop') break
   }
@@ -861,7 +879,7 @@ async function runParallel(siteId: string, tests: TestCase[], settings: Settings
       const i = nextIdx++
       if (i >= tests.length) return
       try {
-        const r = await runTest(siteId, tests[i], settings)
+        const r = await runTest(siteId, tests[i], settings, { authProfileId: tests[i].authProfileId })
         results[i] = r
         if (r.status === 'failed' && settings.runAll.onFailure === 'stop') {
           stop = true

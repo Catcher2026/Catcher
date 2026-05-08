@@ -1,4 +1,4 @@
-export type StepType = 'login' | 'act' | 'assert'
+export type StepType = 'login' | 'act' | 'assert' | 'wait'
 
 export interface TestStep {
   id: string
@@ -13,6 +13,7 @@ export interface TestCase {
   steps: TestStep[]
   createdAt: string
   updatedAt: string
+  authProfileId?: string
 }
 
 export interface AuthProfile {
@@ -182,5 +183,5 @@ export const DEFAULT_SETTINGS: Settings = {
     theme: 'system',
     language: 'en',
   },
-  feedbackUrl: 'https://github.com/REPLACE_ME/nullprobe/issues/new',
+  feedbackUrl: 'https://github.com/REPLACE_ME/catcher/issues/new',
 }

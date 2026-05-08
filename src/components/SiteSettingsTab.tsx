@@ -6,7 +6,7 @@ export function SiteSettingsTab() {
   if (!site) return null
 
   async function update(patch: Partial<typeof site>) {
-    await window.nullprobe.updateSite({ ...site!, ...patch })
+    await window.catcher.updateSite({ ...site!, ...patch })
     await refreshSites()
   }
 

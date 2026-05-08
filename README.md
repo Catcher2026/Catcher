@@ -1,7 +1,7 @@
-# NullProbe
+# Catcher
 
 > Open-source, local-first AI-powered web testing tool.
-> Describe what you want to test in plain English. NullProbe drives a real browser via Playwright and uses an LLM to verify pass/fail.
+> Describe what you want to test in plain English. Catcher drives a real browser via Playwright and uses an LLM to verify pass/fail.
 
 ## Status: scaffold (MVP in progress)
 
@@ -19,8 +19,8 @@ npm run dev
 ```
 
 ## Data location
-All data lives in `~/.nullprobe/`. Nothing is sent anywhere except the LLM provider you configure.
+All data lives in `~/.catcher/`. Nothing is sent anywhere except the LLM provider you configure.
 
 ## Feedback
 Found a bug or have a suggestion? Open an issue:
-https://github.com/REPLACE_ME/nullprobe/issues/new
+https://github.com/REPLACE_ME/catcher/issues/new

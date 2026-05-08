@@ -1,7 +1,7 @@
 # Writing Test Steps
 
 This guide shows you how to write Act and Assert step descriptions that
-NullProbe can execute reliably. NullProbe reads your description and uses
+Catcher can execute reliably. Catcher reads your description and uses
 an LLM + Playwright to actually drive the browser, so the wording matters.
 
 ---
@@ -9,7 +9,7 @@ an LLM + Playwright to actually drive the browser, so the wording matters.
 ## The golden rule: use quotes for any literal text
 
 Wrap exact element text or expected content in **single or double quotes**.
-NullProbe extracts quoted strings as priority match targets.
+Catcher extracts quoted strings as priority match targets.
 
 ✅ **Good**
 - `Click the 'Add address' button`
@@ -22,7 +22,7 @@ NullProbe extracts quoted strings as priority match targets.
 - `Verify success message` — what's the exact message? LLM has to guess
 - `Click Add address button` — works sometimes but quoted is more reliable
 
-When you quote a string, NullProbe runs a **deterministic substring search**
+When you quote a string, Catcher runs a **deterministic substring search**
 for asserts (no LLM hallucination possible) and gives the planner a high-
 confidence text match for actions.
 
@@ -86,14 +86,14 @@ Click the dark area outside the panel    ← matches class~="modal-mask|overlay|
 Select a taste tag from the available options    ← matches by category
 ```
 
-NullProbe's planner has heuristics for these common patterns. If your page
+Catcher's planner has heuristics for these common patterns. If your page
 uses unusual class names and the LLM can't find the target, you'll see a
 clear "no element with text 'X' found" failure rather than a wrong click.
 
 ### Closing modals / overlays
 
 If your test left a modal open and the next step needs to interact with
-something behind it, NullProbe usually handles this automatically (it
+something behind it, Catcher usually handles this automatically (it
 detects the overlay and dismisses it before the action). But if you want
 to be explicit:
 
@@ -119,7 +119,7 @@ Verify the heading shows 'Welcome back'
 The page displays 'Total: $50.00'
 ```
 
-These trigger NullProbe's deterministic check — no LLM judgment needed.
+These trigger Catcher's deterministic check — no LLM judgment needed.
 They're nearly impossible to get wrong if the text is on the page.
 
 ### Substring absence (also deterministic when quoted!)
@@ -171,7 +171,7 @@ If multiple things on the page could match, narrow it down:
 ✅ `Click the 'Save' button in the address form`
 ❌ `Click 'Save'` — there might be Save in the address modal AND a Save Draft elsewhere
 
-NullProbe disambiguates same-text elements automatically when possible
+Catcher disambiguates same-text elements automatically when possible
 (`text` field on selectors), but giving context helps.
 
 ### 2. One action per step
@@ -190,7 +190,7 @@ Click the 'Confirm' button
 
 ### 3. Mention prerequisites only if necessary
 
-NullProbe automatically dismisses blocking overlays before clicking
+Catcher automatically dismisses blocking overlays before clicking
 something behind them, and it inserts settle waits between steps. You
 usually don't need to write `wait 1 second` or `close the modal first`.
 
@@ -209,7 +209,7 @@ When you don't know the exact label (e.g. selecting "any" item):
 ✅ `Click the first product card`
 ✅ `Pick any available time slot`
 
-NullProbe's planner falls back to category-based matching (class names,
+Catcher's planner falls back to category-based matching (class names,
 roles) when no quoted text is provided.
 
 ### 5. For asserts, quote whatever the user would actually see
@@ -221,7 +221,7 @@ If the page renders "Total: $50.00" and you want to assert it, write:
 
 ---
 
-## Reference: keywords NullProbe recognizes
+## Reference: keywords Catcher recognizes
 
 ### Action verbs (Act steps)
 `click, tap, press, select, choose, type, fill, enter, hover, check, uncheck,
@@ -287,11 +287,11 @@ Verify the page shows 'Settings saved'
    ("the close button at top-right of the modal").
 
 2. **Action passed but the assertion fails** — the page may not have updated
-   yet. NullProbe waits ~500ms + network idle between steps; if your app
+   yet. Catcher waits ~500ms + network idle between steps; if your app
    takes longer, add a `Wait for 2 seconds` step before the assert.
 
 3. **"intercepts pointer events"** — something is covering your target.
-   NullProbe auto-retries at the element corner. If still failing, the
+   Catcher auto-retries at the element corner. If still failing, the
    blocking element might be a modal — add a step to close it first.
 
 4. **Wrong element clicked** — your description was ambiguous. Quote the

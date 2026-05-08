@@ -1,6 +1,6 @@
 import type { Site, TestCase, RunResult, AuthProfile, Settings } from './types'
 
-export interface NullProbeAPI {
+export interface CatcherAPI {
   // sites
   listSites(): Promise<Site[]>
   createSite(input: { name: string; url: string }): Promise<Site>
@@ -48,6 +48,6 @@ export interface NullProbeAPI {
 
 declare global {
   interface Window {
-    nullprobe: NullProbeAPI
+    catcher: CatcherAPI
   }
 }

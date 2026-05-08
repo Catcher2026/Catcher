@@ -65,7 +65,7 @@ export function SettingsModal() {
   if (!showSettings || !s) return null
 
   async function save() {
-    await window.nullprobe.saveSettings(s!)
+    await window.catcher.saveSettings(s!)
     await refreshSettings()
     setShowSettings(false)
   }
@@ -266,7 +266,7 @@ export function SettingsModal() {
             <Row label="Keep run history (count)"><input type="number" className="input" value={s.storage.keepRunHistory} onChange={(e) => patch('storage', { keepRunHistory: +e.target.value })} /></Row>
             <Row label="Auto-delete runs older than (days)"><input type="number" className="input" value={s.storage.autoDeleteAfterDays} onChange={(e) => patch('storage', { autoDeleteAfterDays: +e.target.value })} /></Row>
             <p className="text-xs text-muted">
-              <b>Privacy:</b> NullProbe collects no data. Everything stays on your machine; LLM calls go directly to your configured provider.
+              <b>Privacy:</b> Catcher collects no data. Everything stays on your machine; LLM calls go directly to your configured provider.
             </p>
           </Section>
 
@@ -287,7 +287,7 @@ export function SettingsModal() {
           </Section>
 
           <Section title="Feedback">
-            <button className="btn" onClick={() => window.nullprobe.openExternal(s.feedbackUrl)}>Report an issue / suggest a feature →</button>
+            <button className="btn" onClick={() => window.catcher.openExternal(s.feedbackUrl)}>Report an issue / suggest a feature →</button>
           </Section>
 
         </div>

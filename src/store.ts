@@ -46,7 +46,7 @@ export const useApp = create<AppState>((set, get) => ({
   showLlmRequiredModal: false,
 
   refreshSites: async () => {
-    const sites = await window.nullprobe.listSites()
+    const sites = await window.catcher.listSites()
     set({ sites })
     if (!get().selectedSiteId && sites[0]) {
       await get().selectSite(sites[0].id)
@@ -65,7 +65,7 @@ export const useApp = create<AppState>((set, get) => ({
   refreshTests: async () => {
     const id = get().selectedSiteId
     if (!id) return
-    const tests = await window.nullprobe.listTests(id)
+    const tests = await window.catcher.listTests(id)
     set({ tests })
   },
 
@@ -74,19 +74,19 @@ export const useApp = create<AppState>((set, get) => ({
   refreshAuth: async () => {
     const id = get().selectedSiteId
     if (!id) return
-    const profiles = await window.nullprobe.listAuthProfiles(id)
+    const profiles = await window.catcher.listAuthProfiles(id)
     set({ authProfiles: profiles })
   },
 
   refreshRuns: async (testId) => {
     const id = get().selectedSiteId
     if (!id) return
-    const runs = await window.nullprobe.listRuns(id, testId)
+    const runs = await window.catcher.listRuns(id, testId)
     set({ runs })
   },
 
   refreshSettings: async () => {
-    const settings = await window.nullprobe.getSettings()
+    const settings = await window.catcher.getSettings()
     set({ settings })
   },
 
@@ -107,7 +107,7 @@ export const useApp = create<AppState>((set, get) => ({
     const s = get().settings
     const budget = s?.cost.monthlyBudgetUsd
     if (!budget || budget <= 0) return true
-    const { costUsd } = await window.nullprobe.getMonthlyCost()
+    const { costUsd } = await window.catcher.getMonthlyCost()
     if (costUsd >= budget) {
       return confirm(`Monthly budget exceeded: $${costUsd.toFixed(4)} of $${budget.toFixed(2)} used. Continue anyway?`)
     }
