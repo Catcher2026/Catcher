@@ -183,5 +183,5 @@ export const DEFAULT_SETTINGS: Settings = {
     theme: 'system',
     language: 'en',
   },
-  feedbackUrl: 'https://github.com/REPLACE_ME/catcher/issues/new',
+  feedbackUrl: 'https://github.com/Catcher2026/Catcher/issues/new',
 }

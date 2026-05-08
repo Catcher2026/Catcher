@@ -37,7 +37,7 @@ export default function App() {
 
 function FeedbackButton() {
   const { settings } = useApp()
-  const url = settings?.feedbackUrl ?? 'https://github.com/REPLACE_ME/catcher/issues/new'
+  const url = settings?.feedbackUrl ?? 'https://github.com/Catcher2026/Catcher/issues/new'
   return (
     <button
       onClick={() => window.catcher.openExternal(url)}

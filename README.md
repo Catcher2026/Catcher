@@ -3,7 +3,7 @@
 > Open-source, local-first, AI-powered web testing.
 > Describe what you want to test in plain English. Catcher drives a real browser via Playwright and uses an LLM to plan actions, locate elements, and verify pass/fail.
 
-[![Release](https://img.shields.io/github/v/release/Paritok2026/NullProbe?include_prereleases)](https://github.com/Paritok2026/NullProbe/releases)
+[![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
@@ -35,7 +35,7 @@ It's aimed at:
 
 ## Install
 
-Download the latest installer for your platform from the [Releases page](https://github.com/Paritok2026/NullProbe/releases):
+Download the latest installer for your platform from the [Releases page](https://github.com/Catcher2026/Catcher/releases):
 
 - **Windows** — `Catcher Setup x.y.z.exe` (NSIS installer, ~290 MB)
 - **macOS Apple Silicon** — `Catcher-x.y.z-arm64.dmg`
@@ -120,7 +120,7 @@ Settings are stored in `~/.catcher/settings.json`. Most users only need to touch
 Requirements: Node 20+, Git.
 
 ```bash
-git clone https://github.com/Paritok2026/NullProbe.git catcher
+git clone https://github.com/Catcher2026/Catcher.git catcher
 cd catcher
 npm install            # postinstall downloads Chromium into node_modules/playwright-core/.local-browsers
 npm run dev            # vite + electron in watch mode
@@ -171,7 +171,7 @@ git tag v0.1.1
 git push origin main v0.1.1
 ```
 
-The workflow builds both Windows and macOS in parallel on GitHub-hosted runners, and electron-builder uploads the artifacts to a draft release on the [Releases page](https://github.com/Paritok2026/NullProbe/releases). Edit and click **Publish release** when ready.
+The workflow builds both Windows and macOS in parallel on GitHub-hosted runners, and electron-builder uploads the artifacts to a draft release on the [Releases page](https://github.com/Catcher2026/Catcher/releases). Edit and click **Publish release** when ready.
 
 ## Privacy
 
