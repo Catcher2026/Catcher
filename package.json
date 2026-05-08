@@ -89,7 +89,7 @@
       "identity": null
     },
     "publish": [
-      { "provider": "github", "owner": "Paritok2026", "repo": "NoneProbe" }
+      { "provider": "github", "owner": "Paritok2026", "repo": "NullProbe" }
     ]
   }
 }
