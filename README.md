@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<video src="https://github.com/Catcher2026/Catcher/raw/main/demo.mp4" controls width="720"></video>
+![Catcher demo](demo.gif)
 
 ## How it's different
 
