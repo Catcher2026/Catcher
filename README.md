@@ -1,16 +1,24 @@
 # Catcher
 
-> Open-source, local-first, AI-powered web testing.
-> Describe what you want to test in plain English. Catcher drives a real browser via Playwright and uses an LLM to plan actions, locate elements, and verify pass/fail.
+> **Open-source, local-first, BYOK AI web testing.** Write tests in plain English, run them in a real browser on your machine.
 
 [![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
----
+<video src="https://github.com/Catcher2026/Catcher/raw/main/demo.mp4" controls width="720"></video>
 
-## What is it
+## How it's different
 
-Catcher is a desktop app for writing and running end-to-end browser tests **without writing selectors**. You write steps in natural language:
+Most AI testing tools are paid SaaS that runs your tests on their cloud with their LLM. Catcher is the opposite:
+
+- **Desktop app, not a service** — your sites, sessions, cookies and screenshots never leave your machine
+- **BYOK LLM** — point it at OpenAI / Anthropic / Gemini / Ollama / any OpenAI-compatible endpoint; you pay the provider directly
+- **Vision-coordinate fallback** — when a click misses through every selector strategy, Catcher screenshots the page and asks the LLM to point at `{x, y}`. Recovers from overlays, animations, and CSS occlusion that break other planners
+- **MIT-licensed, no telemetry** — fork it, audit it, ship it inside your company
+
+## What it looks like
+
+You write steps in natural language; Catcher runs them in Playwright:
 
 ```
 Click the 'Sign in' button
@@ -20,18 +28,7 @@ Click the 'Continue' button
 Verify the page contains 'Welcome, Alice'
 ```
 
-Catcher's planner translates each step into a Playwright action by combining (a) a deterministic heuristic match against the live DOM, (b) the page's ARIA tree, and (c) an LLM that picks the right element when the heuristic isn't confident. If a click still misses (overlay, off-screen, autocomplete dropdown), it falls back through native DOM clicks and a vision-based coordinate fallback that asks the LLM to point at a screenshot.
-
-Everything runs locally. Your sites, sessions, and screenshots stay on your machine; only the prompts and screenshots Catcher needs to plan a step are sent to whichever LLM provider you configure.
-
-## Why
-
-Traditional E2E tests break every time someone renames a class or restructures a flex container. Catcher tests describe *intent*, so a button moving from `<button class="btn-primary">` to `<a role="button" class="cta">` doesn't break anything as long as the visible label is still `Sign in`.
-
-It's aimed at:
-- Indie devs and small teams who can't justify a Playwright/Cypress suite
-- PMs / designers who want to smoke-test their own flows before shipping
-- Anyone tired of fixing selectors
+Each step goes through a heuristic match on the live DOM first; the LLM is only invoked when the heuristic isn't confident. That keeps simple tests fast and cheap — most clicks never hit the API.
 
 ## Install
 
@@ -62,16 +59,10 @@ For a richer guide on writing steps that the planner handles reliably, see [`PRO
 
 ## Features
 
-- **Three step types**
-  - **Act** — click, type, hover, select, navigate, etc. (LLM-planned)
-  - **Assert** — verify text, visibility, URL, count (deterministic when quoted; LLM-judged otherwise)
-  - **Wait** — explicit pause in seconds, no LLM call
-- **Auth profiles** — sign in once via a real browser window, the session persists. Each test can pin its own profile; Run-all uses each test's saved profile.
-- **AI generate steps** — describe a flow ("verify the contact page links to Twitter and email") and Catcher inspects the live page to draft a step list you can edit before running.
-- **Live run drawer** — streams the browser viewport as JPEG frames + per-step reasoning so you can see exactly what the planner clicked and why.
-- **Vision fallback** — if a click fails (overlay, occlusion, animation), Catcher captures a pre-click screenshot and asks the LLM to return `{x, y}` coordinates to click. Costs nothing when not needed.
-- **Local-first** — all data in `~/.catcher/`. Nothing is uploaded except the prompts/screenshots required by your chosen LLM provider.
-- **Pluggable LLMs** — OpenAI, Anthropic, Gemini, any OpenAI-compatible local server (Ollama, LM Studio, vLLM), or a custom URL.
+- **Three step types** — Act (LLM-planned click/type/hover/etc.), Assert (deterministic when quoted; LLM-judged otherwise), Wait (plain pause in seconds)
+- **Auth profiles** — sign in once via a real browser window, the session persists. Each test pins its own profile; Run-all uses it
+- **AI generate steps** — describe a flow, Catcher inspects the live page and drafts a step list you can edit
+- **Live run drawer** — streams the browser viewport + per-step reasoning so you see exactly what the planner clicked and why
 
 ## Configuration
 
@@ -181,10 +172,9 @@ The workflow builds both Windows and macOS in parallel on GitHub-hosted runners,
 
 ## Limitations
 
-- Chromium-only (Firefox/WebKit work in dev but aren't bundled in the installer yet).
-- LLM cost is paid by you; budget guardrails exist in Settings but are advisory.
-- The vision fallback is only as good as the model — preset models all handle it; a Custom-URL endpoint might not, in which case accuracy drops to whatever the heuristic + plain LLM planner can manage.
-- No code signing yet (see Install section for Gatekeeper / SmartScreen workarounds).
+- Chromium-only in the installer (Firefox/WebKit work in dev)
+- Vision fallback quality tracks the model — preset models all support it; a custom-URL endpoint without vision drops to heuristic + text-planner only
+- No code signing yet (see Install section for Gatekeeper / SmartScreen workarounds)
 
 ## Contributing
 
