@@ -1,5 +1,7 @@
 # Contributing to Catcher
 
+**English** | [简体中文](CONTRIBUTING.zh-CN.md)
+
 Thanks for your interest. Catcher is an Electron + Playwright + LLM testing tool — the parts most worth contributing to are the heuristics that turn a natural-language step into a reliable click, and the LLM prompts that judge whether an assertion holds.
 
 ## Quick start

@@ -1,5 +1,7 @@
 # Catcher
 
+**English** | [简体中文](README.zh-CN.md)
+
 > **Open-source, local-first, BYOK AI web testing.** Write tests in plain English, run them in a real browser on your machine.
 
 [![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
@@ -8,7 +10,7 @@
 
 ![Catcher demo](demo.gif)
 
-## How it's different
+## ✨ How it's different
 
 Most AI testing tools are paid SaaS that runs your tests on their cloud with their LLM. Catcher is the opposite:
 
@@ -17,7 +19,7 @@ Most AI testing tools are paid SaaS that runs your tests on their cloud with the
 - **Vision-coordinate fallback** — when a click misses through every selector strategy, Catcher screenshots the page and asks the LLM to point at `{x, y}`. Recovers from overlays, animations, and CSS occlusion that break other planners
 - **MIT-licensed, no telemetry** — fork it, audit it, ship it inside your company
 
-## What it looks like
+## 📝 What it looks like
 
 You write steps in natural language; Catcher runs them in Playwright:
 
@@ -31,7 +33,7 @@ Verify the page contains 'Welcome, Alice'
 
 Each step goes through a heuristic match on the live DOM first; the LLM is only invoked when the heuristic isn't confident. That keeps simple tests fast and cheap — most clicks never hit the API.
 
-## Install
+## 📦 Install
 
 Download the latest installer for your platform from the [Releases page](https://github.com/Catcher2026/Catcher/releases):
 
@@ -44,7 +46,7 @@ Download the latest installer for your platform from the [Releases page](https:/
 > - Windows SmartScreen will warn "Unknown publisher". Click **More info → Run anyway**.
 > - macOS Gatekeeper will refuse to open the app on first launch. Right-click the app → **Open**, then confirm. Or run `xattr -dr com.apple.quarantine /Applications/Catcher.app`.
 
-## Quick start
+## 🚀 Quick start
 
 1. Launch Catcher.
 2. Open **Settings** → pick a model from the dropdown (GPT-4o, Claude Sonnet, Gemini Pro, etc.) and paste your API key. All preset models support vision (used for the coordinate-fallback feature).
@@ -58,14 +60,14 @@ For a richer guide on writing steps that the planner handles reliably, see [`PRO
 - **One action per step.** Split "fill the form and submit" into separate Acts.
 - **For asserts**, quote whatever the user would actually see on the page.
 
-## Features
+## 🎯 Features
 
 - **Three step types** — Act (LLM-planned click/type/hover/etc.), Assert (deterministic when quoted; LLM-judged otherwise), Wait (plain pause in seconds)
 - **Auth profiles** — sign in once via a real browser window, the session persists. Each test pins its own profile; Run-all uses it
 - **AI generate steps** — describe a flow, Catcher inspects the live page and drafts a step list you can edit
 - **Live run drawer** — streams the browser viewport + per-step reasoning so you see exactly what the planner clicked and why
 
-## Configuration
+## ⚙️ Configuration
 
 Settings are stored in `~/.catcher/settings.json`. Most users only need to touch:
 
@@ -78,7 +80,7 @@ Settings are stored in `~/.catcher/settings.json`. Most users only need to touch
 | Action timeout | 5000ms | How long Playwright waits before falling back |
 | Confidence threshold | 0.7 | Asserts below this become "needs review" instead of pass/fail |
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -107,7 +109,7 @@ Settings are stored in `~/.catcher/settings.json`. Most users only need to touch
 - `electron/generate.ts` — AI test-generation (looks at the live page once, drafts a step list)
 - `electron/llm.ts` — provider-agnostic completion API (OpenAI, Anthropic, Gemini, OpenAI-compatible)
 
-## Development
+## 🔧 Development
 
 Requirements: Node 20+, Git.
 
@@ -133,16 +135,34 @@ npm run dev            # vite + electron in watch mode
 
 ```
 catcher/
-├── electron/                Main-process code (Node) — runner, snapshot, actions, llm
+├── electron/                Main process (Node) — runner, snapshot, actions, LLM clients
+│   ├── runner.ts            Execution engine: snapshot → plan → execute → assert, with retry/cancel
+│   ├── snapshot.ts          Captures ARIA tree + ranked clickables + overlays for the planner
 │   ├── heuristics.ts        Pure tokenization + click-target ranking (unit-tested)
-│   ├── planParser.ts        LLM-plan JSON validation (unit-tested)
-│   └── __tests__/           Vitest unit tests
-├── shared/                  Shared types + IPC contract between main and renderer
-├── src/                     Renderer (React) — components, store, hooks
+│   ├── planParser.ts        LLM-plan JSON validation, throws InvalidPlanError (unit-tested)
+│   ├── actions.ts           Translates a PlannedAction into Playwright calls with fallback chain
+│   ├── generate.ts          AI test-generation (drafts step list from a live page)
+│   ├── llm.ts               Provider-agnostic completion client (OpenAI / Anthropic / Gemini / OpenAI-compat)
+│   ├── pricing.ts           Token-cost estimation per provider
+│   ├── auth.ts              Persistent auth-profile management (login once, reuse the session)
+│   ├── storage.ts           Local JSON store under ~/.catcher/ (sites, tests, runs, settings)
+│   ├── engine.ts            Browser-type selection
+│   ├── main.ts              Electron main-process entry; IPC handlers
+│   ├── preload.ts           Exposes the IPC bridge as window.catcher
+│   └── __tests__/           Vitest unit tests (heuristics, planParser)
+├── shared/                  Types + IPC contract shared between main and renderer
+│   ├── types.ts             Domain types (Site, TestCase, RunResult, Settings, …)
+│   └── ipc.ts               Channel names + payload contract
+├── src/                     Renderer (React)
+│   ├── App.tsx              Top-level layout
+│   ├── store.ts             Zustand store (tests / runs / settings)
+│   ├── main.tsx             React entry
+│   ├── index.css            Tailwind base + tweaks
+│   └── components/          Sidebar, TestEditor, ResultsTab, SettingsModal, …
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml           Type-check + tests + build on every PR
-│       └── release.yml      Builds Win + Mac installers on tag push
+│       └── release.yml      Builds Windows + macOS installers on tag push
 ├── CONTRIBUTING.md          Where new code goes + testing conventions
 ├── PROMPT_WRITING_GUIDE.md  How to write steps that the planner handles well
 └── package.json
@@ -150,15 +170,18 @@ catcher/
 
 ### How a step gets executed
 
-1. `runner.executeStep` takes a snapshot of the page (ARIA tree + ranked clickable elements + overlays).
-2. **Heuristic pass** — `extractTargetTokens` pulls quoted literals (priority) or content tokens out of the description. Each clickable gets a relevance score against tokens. If one element clearly wins, it becomes the **recommended action**.
-3. **Fast path** — for simple `Click 'X'` style steps with a confident heuristic match, the LLM is skipped entirely. Saves a round-trip and prevents the LLM occasionally drifting to a visually-adjacent wrong element.
-4. **LLM plan** — otherwise the planner LLM gets the snapshot + recommended action + cardinal rules (don't pick occluded elements, prefer selectors when an overlay is open, etc.) and returns a single `PlannedAction` or sequence.
-5. **Execute** — `actions.executeAction` runs Playwright with a multi-step click fallback:
-   `loc.click()` → corner-click for backdrop selectors → native `el.click()` via `page.evaluate` → vision-coordinate fallback (LLM points at a pre-click screenshot).
-6. Asserts run through `judgeAssert`. If the step text contains a quoted literal, a deterministic substring check runs instead of asking the LLM.
+| # | Phase | What happens | Code |
+|---|---|---|---|
+| 1 | **Snapshot** | Capture ARIA tree + ranked clickable elements + active overlays | [`snapshot.ts`](electron/snapshot.ts) |
+| 2 | **Heuristic match** | Extract target tokens from the step description (quoted literals win); score each clickable against tokens | [`heuristics.ts`](electron/heuristics.ts) |
+| 3 | **Fast path** | For simple `Click 'X'` style steps with a confident heuristic match, skip the LLM entirely — saves a round-trip and prevents drift | [`runner.planActions`](electron/runner.ts) |
+| 4 | **LLM plan** | Otherwise the planner LLM gets snapshot + recommended action + cardinal rules; response shape is validated, bad shapes throw `InvalidPlanError` | [`planParser.ts`](electron/planParser.ts) |
+| 5 | **Execute** | Playwright `loc.click()` → corner-click for backdrop selectors → native `el.click()` via `page.evaluate` → vision-coordinate fallback (LLM points at a pre-click screenshot) | [`actions.ts`](electron/actions.ts) |
+| 6 | **Assert** | Quoted-substring assertions run a deterministic check first (page text normalised: NBSP, smart quotes, case); otherwise the asserter LLM judges semantically | [`heuristics.ts`](electron/heuristics.ts) + `runner.judgeAssert` |
 
-## Releases
+Steps 1–6 run inside a retry loop at the step level: on failure (or low-confidence assert) the runner re-snapshots and re-plans, up to `settings.retry.maxAttempts` times.
+
+## 🏷️ Releases
 
 Releases are produced by `.github/workflows/release.yml` on tag push.
 
@@ -171,24 +194,30 @@ git push origin main v0.1.1
 
 The workflow builds both Windows and macOS in parallel on GitHub-hosted runners, and electron-builder uploads the artifacts to a draft release on the [Releases page](https://github.com/Catcher2026/Catcher/releases). Edit and click **Publish release** when ready.
 
-## Privacy
+<details>
+<summary><b>🔒 Privacy</b> — local-first, no telemetry, no analytics</summary>
 
 - All site data, sessions, and run history live under `~/.catcher/`.
 - Catcher only contacts the LLM provider you configure. The base URL, request body, and screenshots being sent are visible in `Settings → Log all LLM calls` if you want to audit.
 - No telemetry, no analytics, no auto-update beacons.
 
-## Limitations
+</details>
 
-- Chromium-only in the installer (Firefox/WebKit work in dev)
-- Vision fallback quality tracks the model — preset models all support it; a custom-URL endpoint without vision drops to heuristic + text-planner only
-- No code signing yet (see Install section for Gatekeeper / SmartScreen workarounds)
+<details>
+<summary><b>⚠️ Known limitations</b> — Chromium-only installer, vision quality tracks the model, unsigned binaries</summary>
 
-## Contributing
+- Chromium-only in the installer (Firefox/WebKit work in dev).
+- Vision fallback quality tracks the model — preset models all support it; a custom-URL endpoint without vision drops to heuristic + text-planner only.
+- No code signing yet (see [Install](#-install) for Gatekeeper / SmartScreen workarounds).
+
+</details>
+
+## 🤝 Contributing
 
 PRs welcome. The project is small enough that opening an issue first to discuss the change is appreciated, but not required for obvious bug fixes.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for where new heuristics or planner-parsing code goes and the unit-test conventions. The short version: pure logic lives in [`electron/heuristics.ts`](electron/heuristics.ts) and [`electron/planParser.ts`](electron/planParser.ts), both covered by tests in [`electron/__tests__/`](electron/__tests__/) — run `npm test` before submitting.
 
-## License
+## 📄 License
 
 MIT — see [LICENSE](LICENSE).
