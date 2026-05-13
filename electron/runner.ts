@@ -9,6 +9,8 @@ import { createLLMClient, parseJsonLoose, type LLMMessage, type LLMUsage } from 
 import { snapshotPage, screenshotBase64, type PageSnapshot } from './snapshot'
 import { executeAction, type PlannedAction } from './actions'
 import { estimateCostUsd } from './pricing'
+import { extractTargetTokens, relevanceScore, evaluateQuotedAssertion } from './heuristics'
+import { parseLLMPlan } from './planParser'
 
 function uid(p: string) { return `${p}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` }
 
@@ -93,47 +95,6 @@ interface ExecCtx {
   usage: LLMUsage
   runDir: string
   signal: AbortSignal
-}
-
-const STOPWORDS = new Set([
-  'the', 'a', 'an', 'click', 'press', 'tap', 'select', 'choose', 'pick',
-  'on', 'to', 'and', 'or', 'in', 'of', 'is', 'are', 'this', 'that',
-  'these', 'those', 'with', 'from', 'for', 'at', 'by',
-  'button', 'link', 'tab', 'item', 'option', 'page', 'field', 'box',
-  'open', 'close', 'go', 'navigate', 'verify', 'check', 'ensure', 'make',
-  'sure', 'should', 'must', 'will', 'be', 'has', 'have',
-])
-
-function extractTargetTokens(desc: string): string[] {
-  // Prefer quoted strings as exact targets
-  const quoted = Array.from(desc.matchAll(/['"‘’“”]([^'"‘’“”\n]{2,})['"‘’“”]/g), (m) => m[1])
-  if (quoted.length > 0) {
-    return quoted
-      .join(' ')
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length >= 2 && !STOPWORDS.has(w))
-  }
-  return desc
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w.length >= 2 && !STOPWORDS.has(w))
-}
-
-function relevanceScore(targetTokens: string[], description: string, selector: string): { score: number; matches: string[] } {
-  // Search both human description AND selector (class names often carry semantic hints like "tasteTag")
-  const text = (description + ' ' + selector).toLowerCase()
-  const matches: string[] = []
-  let score = 0
-  for (const t of targetTokens) {
-    if (text.includes(t)) {
-      score += t.length * (t.length >= 4 ? 2 : 1)
-      matches.push(t)
-    }
-  }
-  return { score, matches }
 }
 
 async function planActions(ctx: ExecCtx, stepDescription: string, snapshot: PageSnapshot): Promise<PlannedAction[]> {
@@ -355,9 +316,7 @@ ${occludedText ? `\n═══ Occluded elements (DO NOT click — covered by ove
   })
   ctx.usage.inputTokens += res.usage.inputTokens
   ctx.usage.outputTokens += res.usage.outputTokens
-  const parsed = parseJsonLoose<any>(res.text)
-  if (parsed && Array.isArray(parsed.actions)) return parsed.actions as PlannedAction[]
-  return [parsed as PlannedAction]
+  return parseLLMPlan(res.text)
 }
 
 // Vision-based coordinate fallback: when the primary selector click fails entirely,
@@ -411,35 +370,9 @@ or if the element is not visible:
   await ctx.page.mouse.click(Math.round(parsed.x), Math.round(parsed.y))
 }
 
-function normalizeText(s: string): string {
-  return s
-    .replace(/ /g, ' ')           // NBSP → space
-    .replace(/[‘’]/g, "'")   // smart single quotes
-    .replace(/[“”]/g, '"')   // smart double quotes
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-}
-
-async function deterministicAssertCheck(
-  ctx: ExecCtx,
-  description: string
-): Promise<{ passed: boolean; confidence: number; reason: string } | null> {
-  const re = /['"‘’“”]([^'"‘’“”\n]{2,})['"‘’“”]/g
-  const quoted = Array.from(description.matchAll(re), (m) => m[1])
-  if (quoted.length === 0) return null
-
-  const positiveVerb = /\b(contain|contains|has|have|show|shows|display|displays|include|includes|present|visible|equal|equals|reads?|says?|exist|exists)\b/i.test(description)
-  const negativeMarker = /\b(not|n['o]t|never|missing|absent|hidden|removed|gone|disappear(?:ed|s)?|no\s+longer)\b/i.test(description)
-
-  // Two well-defined cases we can answer deterministically:
-  //   POSITIVE assertion ("contains 'X'") → pass if X found, fall through if not
-  //   NEGATIVE assertion ("'X' should not exist") → pass if X NOT found, fall through if found
-  if (!positiveVerb && !negativeMarker) return null
-
-  let pageText = ''
+async function gatherPageText(ctx: ExecCtx): Promise<string | null> {
   try {
-    pageText = await ctx.page.evaluate(() => {
+    return await ctx.page.evaluate(() => {
       const parts: string[] = []
       if (document.body) parts.push(document.body.innerText || '')
       document.querySelectorAll('input, textarea').forEach((el) => {
@@ -457,45 +390,15 @@ async function deterministicAssertCheck(
   } catch {
     return null
   }
-
-  const normPage = normalizeText(pageText)
-  const presence = quoted.map((q) => ({ q, found: normPage.includes(normalizeText(q)) }))
-
-  if (negativeMarker) {
-    // "X should not exist" / "is not present" / "is hidden"
-    const noneFound = presence.every((p) => !p.found)
-    if (noneFound) {
-      return {
-        passed: true,
-        confidence: 0.99,
-        reason: `[deterministic] None of the asserted strings present in page text/inputs/attributes: ${quoted.map((q) => `"${q}"`).join(', ')}`,
-      }
-    }
-    // some are present — assertion fails deterministically (don't ask LLM, it'll be flaky)
-    const present = presence.filter((p) => p.found).map((p) => `"${p.q}"`)
-    return {
-      passed: false,
-      confidence: 0.99,
-      reason: `[deterministic] Asserted-absent string(s) actually present in page: ${present.join(', ')}`,
-    }
-  }
-
-  // POSITIVE
-  const allFound = presence.every((p) => p.found)
-  if (allFound) {
-    return {
-      passed: true,
-      confidence: 0.99,
-      reason: `[deterministic] All quoted strings found in page (text/inputs/attributes): ${quoted.map((q) => `"${q}"`).join(', ')}`,
-    }
-  }
-  return null
 }
 
 async function judgeAssert(ctx: ExecCtx, description: string, snapshot: PageSnapshot, screenshot: string | null): Promise<{ passed: boolean; confidence: number; reason: string }> {
   // Try deterministic first for quoted-substring assertions — bypasses LLM hallucination
-  const det = await deterministicAssertCheck(ctx, description)
-  if (det) return det
+  const pageText = await gatherPageText(ctx)
+  if (pageText != null) {
+    const det = evaluateQuotedAssertion(description, pageText)
+    if (det) return det
+  }
 
   const client = createLLMClient(ctx.settings.llm.asserter ?? ctx.settings.llm.default)
   const sys = `You verify whether an assertion holds on a web page. Judge SEMANTICALLY, like a human QA tester. Default to PASS when the page clearly shows what the assertion describes.

@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/Catcher2026/Catcher/actions/workflows/ci.yml/badge.svg)](https://github.com/Catcher2026/Catcher/actions/workflows/ci.yml)
 
 ![Catcher demo](demo.gif)
 
@@ -122,6 +123,7 @@ npm run dev            # vite + electron in watch mode
 | Script | Purpose |
 |---|---|
 | `npm run dev` | Run the app in watch mode (Vite + Electron, hot reload) |
+| `npm test` | Run unit tests (vitest) — covers the heuristics and LLM-plan parsing |
 | `npm run build:renderer` | Type-check + build the React renderer |
 | `npm run dist:win` | Build the Windows installer (NSIS `.exe`) into `release/` |
 | `npm run dist:mac` | Build the macOS `.dmg`s into `release/` *(must run on macOS)* |
@@ -131,13 +133,18 @@ npm run dev            # vite + electron in watch mode
 
 ```
 catcher/
-├── electron/        Main-process code (Node) — runner, snapshot, actions, llm
-├── shared/          Shared types + IPC contract between main and renderer
-├── src/             Renderer (React) — components, store, hooks
+├── electron/                Main-process code (Node) — runner, snapshot, actions, llm
+│   ├── heuristics.ts        Pure tokenization + click-target ranking (unit-tested)
+│   ├── planParser.ts        LLM-plan JSON validation (unit-tested)
+│   └── __tests__/           Vitest unit tests
+├── shared/                  Shared types + IPC contract between main and renderer
+├── src/                     Renderer (React) — components, store, hooks
 ├── .github/
 │   └── workflows/
-│       └── release.yml   Builds Win + Mac installers on tag push
-├── PROMPT_WRITING_GUIDE.md   How to write steps that the planner handles well
+│       ├── ci.yml           Type-check + tests + build on every PR
+│       └── release.yml      Builds Win + Mac installers on tag push
+├── CONTRIBUTING.md          Where new code goes + testing conventions
+├── PROMPT_WRITING_GUIDE.md  How to write steps that the planner handles well
 └── package.json
 ```
 
@@ -180,7 +187,7 @@ The workflow builds both Windows and macOS in parallel on GitHub-hosted runners,
 
 PRs welcome. The project is small enough that opening an issue first to discuss the change is appreciated, but not required for obvious bug fixes.
 
-When working on the planner or click pipeline, the relevant test page is whatever site is loaded in dev mode — there is no separate test harness. Run `npm run dev`, point Catcher at a site, and watch the run drawer's reasoning text.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for where new heuristics or planner-parsing code goes and the unit-test conventions. The short version: pure logic lives in [`electron/heuristics.ts`](electron/heuristics.ts) and [`electron/planParser.ts`](electron/planParser.ts), both covered by tests in [`electron/__tests__/`](electron/__tests__/) — run `npm test` before submitting.
 
 ## License
 

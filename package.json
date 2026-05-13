@@ -12,6 +12,8 @@
     "dist:win": "npm run build:renderer && electron-builder --win",
     "dist:mac": "npm run build:renderer && electron-builder --mac",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint . --ext ts,tsx",
     "postinstall": "cross-env PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium"
   },
@@ -35,7 +37,8 @@
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vite-plugin-electron": "^0.28.8",
-    "vite-plugin-electron-renderer": "^0.14.6"
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^2.1.4"
   },
   "build": {
     "appId": "dev.catcher.app",
