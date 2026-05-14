@@ -187,9 +187,9 @@ catcher/
 
 ```bash
 # 在 package.json 里改 version
-git commit -am "release v0.1.1"
-git tag v0.1.1
-git push origin main v0.1.1
+git commit -am "release v0.1.2"
+git tag v0.1.2
+git push origin main v0.1.2
 ```
 
 Workflow 在 GitHub-hosted runner 上并行构建 Windows 和 macOS，electron-builder 把产物上传到 [Releases 页](https://github.com/Catcher2026/Catcher/releases) 上的 draft release。审一遍点 **Publish release** 即可发布。

@@ -187,9 +187,9 @@ Releases are produced by `.github/workflows/release.yml` on tag push.
 
 ```bash
 # bump the version field in package.json
-git commit -am "release v0.1.1"
-git tag v0.1.1
-git push origin main v0.1.1
+git commit -am "release v0.1.2"
+git tag v0.1.2
+git push origin main v0.1.2
 ```
 
 The workflow builds both Windows and macOS in parallel on GitHub-hosted runners, and electron-builder uploads the artifacts to a draft release on the [Releases page](https://github.com/Catcher2026/Catcher/releases). Edit and click **Publish release** when ready.
