@@ -1,6 +1,6 @@
 {
   "name": "catcher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open-source, local-first AI-powered web testing tool",
   "main": "dist-electron/main.js",
   "type": "module",
