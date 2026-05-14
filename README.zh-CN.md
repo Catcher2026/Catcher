@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-> **开源、本地优先、自带 LLM Key 的 AI Web 测试工具。** 用自然语言写测试，在你自己机器上的真实浏览器里跑。
+> **开源、本地优先、自带 LLM Key 的 AI Web 测试工具。** 用英文描述测试，在你自己机器上的真实浏览器里跑。
 
 [![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

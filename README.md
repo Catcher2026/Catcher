@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-> **Open-source, local-first, BYOK AI web testing.** Write tests in plain English, run them in a real browser on your machine.
+> **Open-source, local-first, BYOK AI web testing.** Describe tests in English, run them in a real browser on your machine.
 
 [![Release](https://img.shields.io/github/v/release/Catcher2026/Catcher?include_prereleases)](https://github.com/Catcher2026/Catcher/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
